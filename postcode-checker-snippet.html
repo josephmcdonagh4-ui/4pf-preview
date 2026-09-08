@@ -62,14 +62,27 @@
 <script>
 (function(){
   // ===== EDIT HERE ==========================================================
-  // Districts taken from the coverage maps: Pimlico, Nine Elms/Vauxhall, SE1
-  // (Waterloo/Borough), Kennington, Stockwell, Brixton, Clapham, Battersea,
-  // Balham, Camberwell. Every one below also has live clients in it.
-  var COVERED = ['SW1V','SW1P','SW8','SW11','SW4','SW9','SW2','SW12','SE1','SE11','SE5'];
+  // Matched on POSTCODE SECTOR (e.g. "SW16 6"), not the whole district, because
+  // coverage is partial in several districts - SW16 6 is covered, the rest of
+  // SW16 is not. Every sector below is one you have live clients in.
+  var COVERED = [
+    'SE1 0','SE1 1','SE1 4','SE1 5','SE1 6','SE1 7','SE1 9',
+    'SE5 0','SE5 7','SE5 8','SE5 9',
+    'SE11 4','SE11 5',
+    'SE16 6','SE16 7',
+    'SW1P 1','SW1P 4',
+    'SW1V 2','SW1V 3','SW1V 4',
+    'SW2 1','SW2 5',
+    'SW4 0','SW4 6','SW4 8','SW4 9',
+    'SW8 1','SW8 2','SW8 3','SW8 4',
+    'SW9 0','SW9 6','SW9 7','SW9 9',
+    'SW11 5','SW11 6','SW11 7',
+    'SW12 0','SW12 8',
+    'SW16 6','SE15 5','SE24 0','SE27 9'
+  ];
 
-  // Bordering districts - not on the maps, but you have clients in each, so
-  // they get "get in touch" rather than a flat no. Move or delete as you like.
-  var NEARBY  = ['SE16','SE15','SE17','SE24','SE27','SW16','SW17','SW18','SW1W','SW3'];
+  // You have a client here but it is outside the usual round - offer a chat, not a yes.
+  var NEARBY = ['SE6 1','SE10 0','SE10 9','SW6 3','SW10 0','SW15 3','SW19 1'];
 
   var BOOK_URL    = 'https://book.4pawfriend.co.uk';
   var CONTACT_URL = '#contact';
@@ -83,12 +96,14 @@
 
   areas.textContent = 'Covering Pimlico, Vauxhall, Nine Elms, Waterloo, Borough, Kennington, Stockwell, Brixton, Clapham, Battersea, Balham & Camberwell';
 
-  // Reduce a typed postcode to its outward code: "sw9 8ab" / "SW98AB" -> "SW9".
-  function outward(raw){
+  // "sw16 6ab" / "SW166AB" -> {sector:'SW16 6', outward:'SW16'}
+  // A full postcode is needed, because coverage splits within a district.
+  function parse(raw){
     var s = (raw || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
-    if(!s) return '';
-    if(s.length > 3 && /[0-9][A-Z]{2}$/.test(s)) s = s.slice(0,-3);
-    return /^[A-Z]{1,2}[0-9][A-Z0-9]?$/.test(s) ? s : '';
+    if(s.length < 5 || s.length > 7) return null;
+    var outw = s.slice(0,-3), sect = s.charAt(s.length-3);
+    if(!/^[A-Z]{1,2}[0-9][A-Z0-9]?$/.test(outw) || !/^[0-9]$/.test(sect)) return null;
+    return { sector: outw + ' ' + sect, outward: outw };
   }
 
   function show(cls, icon, title, body, ctaText, ctaHref){
@@ -112,20 +127,25 @@
 
   form.addEventListener('submit', function(e){
     e.preventDefault();
-    var code = outward(input.value);
-    if(!code){
-      show('pc-no','\u26A0\uFE0F','That doesn\u2019t look like a postcode',
-           'Try just the first part \u2014 for example SW9 or SE11.');
-    } else if(COVERED.indexOf(code) !== -1){
-      show('pc-yes','\u2705','Yes \u2014 we cover ' + code + '!',
-           'Great news, ' + code + ' is right in our patch. We pick up and drop off from your front door.',
+    var pc = parse(input.value);
+    if(!pc){
+      show('pc-no','\u26A0\uFE0F','We need your full postcode',
+           'We cover part of some areas but not all of them, so we need the whole postcode \u2014 for example SW9 8AB.');
+      return;
+    }
+    var sameDistrict = COVERED.some(function(x){ return x.split(' ')[0] === pc.outward; });
+
+    if(COVERED.indexOf(pc.sector) !== -1){
+      show('pc-yes','\u2705','Yes \u2014 we cover you!',
+           pc.sector + ' is in our patch. We pick up and drop off from your front door.',
            'BOOK NOW \u2192', BOOK_URL);
-    } else if(NEARBY.indexOf(code) !== -1){
-      show('pc-maybe','\uD83D\uDCCD', code + ' is just outside our usual round',
-           'We can sometimes stretch a little further depending on the day. Get in touch and we\u2019ll tell you honestly whether we can help.',
+    } else if(NEARBY.indexOf(pc.sector) !== -1 || sameDistrict){
+      show('pc-maybe','\uD83D\uDCCD','You\u2019re on the edge of our round',
+           'We walk in part of ' + pc.outward + ', but not every street \u2014 and ' + pc.sector +
+           ' is right on the boundary. Send us your postcode and we\u2019ll tell you honestly.',
            'GET IN TOUCH \u2192', CONTACT_URL);
     } else {
-      show('pc-no','\uD83D\uDC15','We don\u2019t currently cover ' + code,
+      show('pc-no','\uD83D\uDC15','We don\u2019t currently cover ' + pc.outward,
            'That\u2019s outside the area we walk \u2014 but we\u2019re growing all the time, so do drop us a message.',
            'GET IN TOUCH \u2192', CONTACT_URL);
     }
