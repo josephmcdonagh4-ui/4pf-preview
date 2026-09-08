@@ -1,12 +1,8 @@
 <!-- ==========================================================================
-     4 PAW FRIEND — POSTCODE COVERAGE CHECKER (radius based)
+     4 PAW FRIEND - POSTCODE COVERAGE CHECKER
      Paste this whole block where you want it to appear.
      Self-contained. All class names prefixed "pc-". No build step.
-
-     Works out the real straight-line distance from your base to the
-     visitor's postcode, using the free postcodes.io lookup in their browser.
-
-     SET YOUR RADIUS on the RADIUS_MILES line below.
+     Coverage lists are in the EDIT HERE block near the bottom.
      ========================================================================== -->
 
 <style>
@@ -53,7 +49,7 @@
 
     <form class="pc-form" id="pcForm" novalidate>
       <label for="pcInput" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">Your postcode</label>
-      <input class="pc-input" id="pcInput" type="text" placeholder="e.g. SE16 7RA" autocomplete="postal-code" maxlength="9" spellcheck="false">
+      <input class="pc-input" id="pcInput" type="text" placeholder="e.g. SW9 8AB" autocomplete="postal-code" maxlength="9" spellcheck="false">
       <button class="pc-btn" id="pcBtn" type="submit">CHECK NOW &#8594;</button>
     </form>
 
@@ -66,9 +62,14 @@
 <script>
 (function(){
   // ===== EDIT HERE ==========================================================
-  var BASE_POSTCODE = 'SE16 7RA';   // where the radius is measured from
-  var RADIUS_MILES  = 3;            // <-- SET THIS. Inside = we cover you.
-  var MAYBE_EXTRA   = 1;            // extra miles treated as "just outside"
+  // Districts taken from the coverage maps: Pimlico, Nine Elms/Vauxhall, SE1
+  // (Waterloo/Borough), Kennington, Stockwell, Brixton, Clapham, Battersea,
+  // Balham, Camberwell. Every one below also has live clients in it.
+  var COVERED = ['SW1V','SW1P','SW8','SW11','SW4','SW9','SW2','SW12','SE1','SE11','SE5'];
+
+  // Bordering districts - not on the maps, but you have clients in each, so
+  // they get "get in touch" rather than a flat no. Move or delete as you like.
+  var NEARBY  = ['SE16','SE15','SE17','SE24','SE27','SW16','SW17','SW18','SW1W','SW3'];
 
   var BOOK_URL    = 'https://book.4pawfriend.co.uk';
   var CONTACT_URL = '#contact';
@@ -76,35 +77,18 @@
 
   var form   = document.getElementById('pcForm');
   var input  = document.getElementById('pcInput');
-  var btn    = document.getElementById('pcBtn');
   var result = document.getElementById('pcResult');
   var areas  = document.getElementById('pcAreas');
   if(!form || !input || !result) return;
 
-  areas.textContent = 'We cover roughly ' + RADIUS_MILES + ' miles around our base in South London.';
+  areas.textContent = 'Covering Pimlico, Vauxhall, Nine Elms, Waterloo, Borough, Kennington, Stockwell, Brixton, Clapham, Battersea, Balham & Camberwell';
 
-  var API  = 'https://api.postcodes.io/postcodes/';
-  var base = null;   // cached {lat, lon} for BASE_POSTCODE
-
-  function clean(s){ return (s||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
-
-  // Straight-line miles between two lat/lon points.
-  function miles(a, b){
-    var R = 3958.8, toRad = Math.PI/180;
-    var dLat = (b.lat-a.lat)*toRad, dLon = (b.lon-a.lon)*toRad;
-    var s = Math.sin(dLat/2)*Math.sin(dLat/2) +
-            Math.cos(a.lat*toRad)*Math.cos(b.lat*toRad)*Math.sin(dLon/2)*Math.sin(dLon/2);
-    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
-  }
-
-  function lookup(pc){
-    return fetch(API + encodeURIComponent(pc))
-      .then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(j){
-        if(!j || !j.result) return null;
-        return { lat: j.result.latitude, lon: j.result.longitude };
-      })
-      .catch(function(){ return null; });
+  // Reduce a typed postcode to its outward code: "sw9 8ab" / "SW98AB" -> "SW9".
+  function outward(raw){
+    var s = (raw || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(!s) return '';
+    if(s.length > 3 && /[0-9][A-Z]{2}$/.test(s)) s = s.slice(0,-3);
+    return /^[A-Z]{1,2}[0-9][A-Z0-9]?$/.test(s) ? s : '';
   }
 
   function show(cls, icon, title, body, ctaText, ctaHref){
@@ -128,56 +112,23 @@
 
   form.addEventListener('submit', function(e){
     e.preventDefault();
-    var pc = clean(input.value);
-    if(pc.length < 5){
-      show('pc-no','⚠️','That doesn’t look like a full postcode',
-           'We need the whole thing to measure the distance — for example SE16 7RA.');
-      return;
+    var code = outward(input.value);
+    if(!code){
+      show('pc-no','\u26A0\uFE0F','That doesn\u2019t look like a postcode',
+           'Try just the first part \u2014 for example SW9 or SE11.');
+    } else if(COVERED.indexOf(code) !== -1){
+      show('pc-yes','\u2705','Yes \u2014 we cover ' + code + '!',
+           'Great news, ' + code + ' is right in our patch. We pick up and drop off from your front door.',
+           'BOOK NOW \u2192', BOOK_URL);
+    } else if(NEARBY.indexOf(code) !== -1){
+      show('pc-maybe','\uD83D\uDCCD', code + ' is just outside our usual round',
+           'We can sometimes stretch a little further depending on the day. Get in touch and we\u2019ll tell you honestly whether we can help.',
+           'GET IN TOUCH \u2192', CONTACT_URL);
+    } else {
+      show('pc-no','\uD83D\uDC15','We don\u2019t currently cover ' + code,
+           'That\u2019s outside the area we walk \u2014 but we\u2019re growing all the time, so do drop us a message.',
+           'GET IN TOUCH \u2192', CONTACT_URL);
     }
-
-    btn.disabled = true;
-    var prev = btn.textContent;
-    btn.textContent = 'CHECKING…';
-
-    var basePromise = base ? Promise.resolve(base) : lookup(clean(BASE_POSTCODE));
-
-    Promise.all([basePromise, lookup(pc)]).then(function(res){
-      base = res[0];
-      var them = res[1];
-      btn.disabled = false;
-      btn.textContent = prev;
-
-      if(!them){
-        show('pc-no','⚠️','We couldn’t find that postcode',
-             'Double-check it and try again, or just message us and we’ll tell you.',
-             'GET IN TOUCH →', CONTACT_URL);
-        return;
-      }
-      if(!base){
-        // Lookup service unavailable — never guess, just invite contact.
-        show('pc-maybe','📍','We can’t check automatically right now',
-             'Our checker is having a moment. Drop us a message with your postcode and we’ll tell you straight away.',
-             'GET IN TOUCH →', CONTACT_URL);
-        return;
-      }
-
-      var d = miles(base, them);
-      var shown = d < 10 ? d.toFixed(1) : Math.round(d);
-
-      if(d <= RADIUS_MILES){
-        show('pc-yes','✅','Yes — we cover you!',
-             'You’re about ' + shown + ' miles from us, well inside our patch. We pick up and drop off from your front door.',
-             'BOOK NOW →', BOOK_URL);
-      } else if(d <= RADIUS_MILES + MAYBE_EXTRA){
-        show('pc-maybe','📍','You’re just outside our usual round',
-             'About ' + shown + ' miles from us. We can sometimes stretch a little further depending on the day — get in touch and we’ll tell you honestly.',
-             'GET IN TOUCH →', CONTACT_URL);
-      } else {
-        show('pc-no','🐕','You’re a bit far for us',
-             'About ' + shown + ' miles from our base, which is outside the area we cover — but we’re growing, so do drop us a message.',
-             'GET IN TOUCH →', CONTACT_URL);
-      }
-    });
   });
 
   input.addEventListener('input', function(){ result.hidden = true; });
