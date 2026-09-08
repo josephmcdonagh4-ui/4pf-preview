@@ -181,6 +181,40 @@ body{font-family:'Open Sans',sans-serif;background:#fff;color:#222}
   .footer{grid-template-columns:1fr;padding:40px 20px;gap:30px}
   .footer-bottom{padding:14px 20px;flex-direction:column;gap:10px;text-align:center}
 }
+
+/* POSTCODE CHECKER */
+.pc-section{background:#0000FF;padding:56px 40px;position:relative;overflow:hidden}
+.pc-paw{position:absolute;color:#FFFF00;opacity:0.05;font-size:200px;pointer-events:none;line-height:1;bottom:-50px;right:20px}
+.pc-inner{max-width:700px;margin:0 auto;position:relative;z-index:1;text-align:center}
+.pc-tag{font-family:'Montserrat',sans-serif;font-size:11px;font-weight:900;color:#FFFF00;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.pc-inner h2{font-family:'Montserrat',sans-serif;font-size:34px;font-weight:900;color:#FFFF00;margin-bottom:10px;line-height:1.2}
+.pc-sub{font-size:16px;color:rgba(255,255,255,0.85);margin-bottom:26px;line-height:1.6}
+.pc-form{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.pc-input{font-family:'Montserrat',sans-serif;font-size:17px;font-weight:700;padding:16px 22px;border-radius:28px;border:3px solid #FFFF00;background:#fff;color:#0000BB;width:260px;text-transform:uppercase;letter-spacing:1px}
+.pc-input::placeholder{color:#9999cc;font-weight:600;letter-spacing:0}
+.pc-input:focus{outline:3px solid #fff;outline-offset:2px}
+.pc-btn{background:#FFFF00;color:#0000BB;font-family:'Montserrat',sans-serif;font-weight:900;font-size:16px;padding:16px 38px;border-radius:28px;border:none;letter-spacing:1px;cursor:pointer;white-space:nowrap}
+.pc-btn:hover{background:#fff}
+.pc-btn:focus{outline:3px solid #fff;outline-offset:2px}
+.pc-result{margin-top:24px;border-radius:14px;padding:22px 26px;text-align:left;display:flex;gap:16px;align-items:flex-start;font-size:15px;line-height:1.65}
+.pc-result[hidden]{display:none}
+.pc-ico{font-size:30px;line-height:1;flex-shrink:0}
+.pc-result strong{font-family:'Montserrat',sans-serif;font-size:19px;font-weight:900;display:block;margin-bottom:5px}
+.pc-yes{background:#FFFF00;color:#0000AA}
+.pc-yes strong{color:#0000BB}
+.pc-maybe{background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,0,0.5);color:rgba(255,255,255,0.9)}
+.pc-maybe strong{color:#FFFF00}
+.pc-no{background:rgba(255,255,255,0.09);border:1.5px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.85)}
+.pc-no strong{color:#FFFF00}
+.pc-cta{display:inline-block;margin-top:12px;background:#0000FF;color:#FFFF00;font-family:'Montserrat',sans-serif;font-weight:900;font-size:14px;padding:12px 26px;border-radius:24px;text-decoration:none;letter-spacing:1px}
+.pc-maybe .pc-cta,.pc-no .pc-cta{background:#FFFF00;color:#0000BB}
+.pc-areas{margin-top:22px;font-size:13px;color:rgba(255,255,255,0.55);line-height:1.8}
+@media(max-width:640px){
+  .pc-section{padding:44px 22px}
+  .pc-inner h2{font-size:26px}
+  .pc-input{width:100%}
+  .pc-btn{width:100%}
+}
 </style>
 </head>
 <body>
@@ -236,6 +270,116 @@ body{font-family:'Open Sans',sans-serif;background:#fff;color:#222}
   <div class="stat"><div class="stat-num">300+</div><div class="stat-lbl">Walks Per Week</div></div>
   <div class="stat"><div class="stat-num">6+</div><div class="stat-lbl">Years Experience</div></div>
 </div>
+
+
+<!-- POSTCODE CHECKER -->
+<section class="pc-section" id="areas">
+  <div class="pc-paw">&#128062;</div>
+  <div class="pc-inner">
+    <div class="pc-tag">&#128205; Check Your Area</div>
+    <h2>Do we cover your postcode?</h2>
+    <p class="pc-sub">Pop your postcode in below and find out straight away whether we walk in your area.</p>
+
+    <form class="pc-form" id="pcForm" novalidate>
+      <label for="pcInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">Your postcode</label>
+      <input class="pc-input" id="pcInput" type="text" placeholder="e.g. SW9 8AB" autocomplete="postal-code" maxlength="8" spellcheck="false">
+      <button class="pc-btn" type="submit">CHECK NOW &#8594;</button>
+    </form>
+
+    <div class="pc-result" id="pcResult" role="status" aria-live="polite" hidden></div>
+
+    <div class="pc-areas">Covering Lambeth, Wandsworth, Clapham, Brixton, Stockwell, Kennington, Vauxhall, Battersea &amp; Pimlico</div>
+  </div>
+</section>
+
+<script>
+(function(){
+  // --- EDIT HERE -----------------------------------------------------------
+  // COVERED: we walk here. Seeded from the postcodes of existing clients.
+  var COVERED = ['SE1','SE5','SE10','SE11','SE15','SE16','SE17','SE21','SE22','SE24','SE27',
+                 'SW1P','SW1V','SW2','SW4','SW8','SW9','SW11','SW12','SW16','SW17','SW18'];
+  // NEARBY: just outside the usual round - worth a conversation rather than a flat no.
+  var NEARBY  = ['SE4','SE6','SE8','SE13','SE14','SE19','SE23','SE25','SE26',
+                 'SW1A','SW1E','SW1H','SW1W','SW3','SW5','SW6','SW10','SW13','SW15','SW19','SW20'];
+  // -------------------------------------------------------------------------
+
+  var form   = document.getElementById('pcForm');
+  var input  = document.getElementById('pcInput');
+  var result = document.getElementById('pcResult');
+  if(!form || !input || !result) return;
+
+  var BOOK_URL = 'https://book.4pawfriend.co.uk';
+
+  // Reduce a typed postcode to its outward code: "sw9 8ab" / "SW98AB" -> "SW9".
+  function outward(raw){
+    var s = (raw || '').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(!s) return '';
+    // A full postcode ends in digit + 2 letters. Strip that to leave the outward code.
+    if(s.length > 3 && /[0-9][A-Z]{2}$/.test(s)) s = s.slice(0, -3);
+    return /^[A-Z]{1,2}[0-9][A-Z0-9]?$/.test(s) ? s : '';
+  }
+
+  function show(cls, icon, title, body, ctaText, ctaHref){
+    result.className = 'pc-result ' + cls;
+    result.innerHTML = '';
+
+    var ico = document.createElement('div');
+    ico.className = 'pc-ico';
+    ico.textContent = icon;
+
+    var wrap = document.createElement('div');
+    var strong = document.createElement('strong');
+    strong.textContent = title;
+    wrap.appendChild(strong);
+    wrap.appendChild(document.createTextNode(body));
+
+    if(ctaText){
+      var a = document.createElement('a');
+      a.className = 'pc-cta';
+      a.href = ctaHref;
+      a.textContent = ctaText;
+      wrap.appendChild(document.createElement('br'));
+      wrap.appendChild(a);
+    }
+
+    result.appendChild(ico);
+    result.appendChild(wrap);
+    result.hidden = false;
+  }
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var code = outward(input.value);
+
+    if(!code){
+      show('pc-no','\u{26A0}\u{FE0F}',
+           'That doesn’t look like a postcode',
+           'Try just the first part — for example SW9 or SE11.');
+      return;
+    }
+
+    if(COVERED.indexOf(code) !== -1){
+      show('pc-yes','✅',
+           'Yes — we cover ' + code + '!',
+           'Great news, ' + code + ' is right in our patch. We pick up and drop off from your front door.',
+           'BOOK NOW →', BOOK_URL);
+    } else if(NEARBY.indexOf(code) !== -1){
+      show('pc-maybe','\u{1F4CD}',
+           code + ' is just outside our usual round',
+           'We can sometimes take dogs slightly further out depending on the day. Get in touch and we’ll let you know honestly whether we can help.',
+           'GET IN TOUCH →', '#contact');
+    } else {
+      show('pc-no','\u{1F415}',
+           'We don’t currently cover ' + code,
+           'We’re South London based and don’t walk in your area yet — but we’re growing all the time, so do drop us a message.',
+           'GET IN TOUCH →', '#contact');
+    }
+  });
+
+  // Clear a stale answer as soon as they start typing a new postcode.
+  input.addEventListener('input', function(){ result.hidden = true; });
+})();
+</script>
 
 <section id="about" class="about">
   <div class="about-left">
